@@ -71,6 +71,10 @@
 #include "dccar.h"
 #endif
 
+#ifdef USE_RAILCAN
+#include "railcan.h"
+#endif
+
 #include "syslogmessage.h"
 
 
@@ -312,6 +316,13 @@ static bus_t register_bus(bus_t busnumber, xmlDocPtr doc, xmlNodePtr node)
             syslog_bus(0, DBG_ERROR, DISABLE_MSG, child->name);
 #endif
         }
+        else if (xmlStrcmp(child->name, BAD_CAST "railcan") == 0) {
+#ifdef USE_RAILCAN
+          busnumber += readconfig_RAILCAN(doc, child, busnumber);
+#else
+          syslog_bus(0, DBG_ERROR, DISABLE_MSG, child->name);
+#endif
+        }
 
 
         /* some attributes are common for all (real) buses */
@@ -322,6 +333,9 @@ static bus_t register_bus(bus_t busnumber, xmlDocPtr doc, xmlNodePtr node)
             }
             else if (xmlStrcmp(txt2, BAD_CAST "network") == 0) {
                 buses[current_bus].devicetype = HW_NETWORK;
+            }
+            else if (xmlStrcmp(txt2, BAD_CAST "interface") == 0) {
+                buses[current_bus].devicetype = HW_INTERFACE;
             }
             else {
                 syslog_bus(0, DBG_WARN, "WARNING, \"%s\" (bus %ld) is an "
@@ -384,6 +398,13 @@ static bus_t register_bus(bus_t busnumber, xmlDocPtr doc, xmlNodePtr node)
                             buses[current_bus].device.net.protocol = 6; /* TCP */
                         }
                         break;
+                    case HW_INTERFACE:
+                        free(buses[current_bus].device.file.path);
+                        buses[current_bus].device.interface.name =
+                            malloc(strlen((char *) txt) + 1);
+                        strcpy(buses[current_bus].device.interface.name,
+                               (char *) txt);
+                        break;
                 }
                 xmlFree(txt);
             }
@@ -399,6 +420,10 @@ static bus_t register_bus(bus_t busnumber, xmlDocPtr doc, xmlNodePtr node)
                                buses[current_bus].device.net.protocol,
                                buses[current_bus].device.net.port);
                     break;
+                case HW_INTERFACE:
+                  syslog_bus(current_bus, DBG_DEBUG, "** Interface='%s'",
+                             buses[current_bus].device.interface.name);
+                  break;
             }
         }
 

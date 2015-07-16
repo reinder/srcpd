@@ -84,6 +84,10 @@ if USE_DCCAR
 srcpd_SOURCES += dccar.c dccar.h
 endif
 
+if USE_RAILCAN
+srcpd_SOURCES += railcan.c railcan.h
+endif
+
 EXTRA_DIST = li100.c
 
 DEFS = -D_REENTRANT -DSYSCONFDIR=\"$(sysconfdir)\" @DEFS@

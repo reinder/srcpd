@@ -152,12 +152,27 @@ if test "$with_DCCAR" = "yes"; then
 fi
 AM_CONDITIONAL(USE_DCCAR, test "$with_DCCAR" = yes)
 
+dnl Option to disable RailCAN support
+AC_ARG_ENABLE(railcan,
+    AC_HELP_STRING([--disable-railcan], [do not compile railcan module]),
+    [with_RAILCAN="$enableval"], [with_RAILCAN=yes])
+if test "$with_RAILCAN" = "yes"; then
+   AC_DEFINE(USE_RAILCAN,1, [define to 1 if you want railcan support])
+   ((NUM_MODULES++))
+fi
+AM_CONDITIONAL(USE_RAILCAN, test "$with_RAILCAN" = yes)
+
 dnl test for getaddrinfo, not available under Cygwin but necessary for Loconet
 if test "$with_LOCONET" = "yes"; then
     AC_SEARCH_LIBS(getaddrinfo, inet6,
         [AC_DEFINE(HAVE_GETADDRINFO,1,
             [define to 1 if you have the getaddrinfo function])],
         [AC_MSG_ERROR(getaddrinfo support missing)])
+fi
+
+dnl test for librailcan, required for RailCAN
+if test "$with_RAILCAN" = "yes"; then
+  AC_CHECK_LIB(railcan, librailcan_get_version, , AC_MSG_ERROR(librailcan is missing))
 fi
 
 
@@ -322,6 +337,7 @@ if test "$with_M605X"     = "yes"; then echo "    m605x"; fi
 if test "$with_SELECTRIX" = "yes"; then echo "    selectrix"; fi
 if test "$with_ZIMO"      = "yes"; then echo "    zimo"; fi
 if test "$with_DCCAR"     = "yes"; then echo "    dccar"; fi
+if test "$with_RAILCAN"   = "yes"; then echo "    railcan"; fi
 echo
 echo "Unsupported devices:"
 if test "$with_DDL"       != "yes"; then echo "    ddl"; fi
@@ -336,6 +352,7 @@ if test "$with_M605X"     != "yes"; then echo "    m605x"; fi
 if test "$with_SELECTRIX" != "yes"; then echo "    selectrix"; fi
 if test "$with_ZIMO"      != "yes"; then echo "    zimo"; fi
 if test "$with_DCCAR"     != "yes"; then echo "    dccar"; fi
+if test "$with_RAILCAN"   != "yes"; then echo "    railcan"; fi
 
 echo
 if ((NUM_MODULES == 0)); then

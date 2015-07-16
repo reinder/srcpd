@@ -56,6 +56,7 @@ typedef unsigned long int sessionid_t;
 #define SERVER_SELECTRIX       11    /* Selectrix-server */
 #define SERVER_LOCONET         12    /* Loconet Gateway */
 #define SERVER_DCCAR           13    /* DC-Car Gateway */
+#define SERVER_RAILCAN         14    /* RailCAN bus */
 
 /* generic flags */
 #define USE_WATCHDOG          0x0001 /* use watchdog */
@@ -72,6 +73,7 @@ typedef unsigned long int sessionid_t;
 #define HW_UNDEFINED 0
 #define HW_FILENAME  1
 #define HW_NETWORK   2
+#define HW_INTERFACE 3
 
 /* Flow control for serial lines */
 #define SER_FC_NONE  0
@@ -94,7 +96,7 @@ typedef struct _BUS
   char *protocols; /* array of supported protocols */
   char description[100]; /* bus description */
 
-  int devicetype;  /* file, network, constants start with HW_ */
+  int devicetype;  /* file, network, interface, constants start with HW_ */
   union {
       struct {
         char *path;    /* Path to device, if not null */
@@ -109,6 +111,9 @@ typedef struct _BUS
         char *port;      /* if using tcp or udp: portnumber or servicename to connect to. */
         int sockfd;      /* socket descriptor */
       } net;
+      struct {
+        char *name; /* interface name */
+      } interface;
   } device;
   DeviceState devicestate;
   /* thread synchronisation variables */
