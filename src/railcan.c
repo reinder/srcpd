@@ -198,8 +198,9 @@ static void handle_power_command(bus_t bus)
 static void handle_gl_command(bus_t bus)
 {
     int r;
-    gl_state_t gl;
+    gl_state_t gl, gl_cache;
     dequeueNextGL(bus, &gl);
+    cacheGetGL(bus, gl.id, &gl_cache);
 
     uint16_t address = gl.id;
     if (gl.protocolversion == 2)
@@ -207,54 +208,66 @@ static void handle_gl_command(bus_t bus)
 
     /* speed and direction */
     if (gl.direction == 2) {
-        r = librailcan_dcc_locomotive_emergency_stop(__railcan->module_dcc, address);
-        if (r != LIBRAILCAN_STATUS_SUCCESS)
-            SYSLOG_BUS(bus, DBG_ERROR,
-                       "librailcan_dcc_emergency_stop failed (r=%d)", r);
+        if (gl.direction != gl_cache.direction) {
+            r = librailcan_dcc_locomotive_emergency_stop(__railcan->module_dcc, address);
+            if (r != LIBRAILCAN_STATUS_SUCCESS)
+                SYSLOG_BUS(bus, DBG_ERROR,
+                          "librailcan_dcc_emergency_stop failed (r=%d)", r);
+        }
     }
     else {
         /* direction */
-        librailcan_dcc_locomotive_set_direction(__railcan->module_dcc, address,
+        if (gl.direction != gl_cache.direction) {
+            librailcan_dcc_locomotive_set_direction(__railcan->module_dcc, address,
                                      gl.
                                      direction ?
                                      LIBRAILCAN_DCC_LOCOMOTIVE_DIRECTION_FORWARD :
                                      LIBRAILCAN_DCC_LOCOMOTIVE_DIRECTIOM_REVERSE);
-        if (r != LIBRAILCAN_STATUS_SUCCESS)
-            SYSLOG_BUS(bus, DBG_ERROR,
-                       "librailcan_dcc_set_direction failed (r=%d)", r);
-
-        /* speed */
-        uint8_t speed = gl.speed;
-
-        switch (gl.n_fs) {
-            case 14:
-                speed |= LIBRAILCAN_DCC_LOCOMOTIVE_SPEED_14;
-                break;
-            case 28:
-                speed |= LIBRAILCAN_DCC_LOCOMOTIVE_SPEED_28;
-                break;
-            case 128:
-                speed |= LIBRAILCAN_DCC_LOCOMOTIVE_SPEED_128;
-                break;
+            if (r != LIBRAILCAN_STATUS_SUCCESS)
+                SYSLOG_BUS(bus, DBG_ERROR,
+                          "librailcan_dcc_set_direction failed (r=%d)", r);
         }
 
-        librailcan_dcc_locomotive_set_speed(__railcan->module_dcc, address, speed);
-        if (r != LIBRAILCAN_STATUS_SUCCESS)
-            SYSLOG_BUS(bus, DBG_ERROR,
-                       "librailcan_dcc_set_speed failed (r=%d)", r);
+        /* speed */
+        if(gl.speed != gl_cache.speed)
+        {
+            uint8_t speed = gl.speed;
+
+            switch (gl.n_fs) {
+                case 14:
+                    speed |= LIBRAILCAN_DCC_LOCOMOTIVE_SPEED_14;
+                    break;
+                case 28:
+                    speed |= LIBRAILCAN_DCC_LOCOMOTIVE_SPEED_28;
+                    break;
+                case 128:
+                    speed |= LIBRAILCAN_DCC_LOCOMOTIVE_SPEED_128;
+                    break;
+            }
+
+            librailcan_dcc_locomotive_set_speed(__railcan->module_dcc, address, speed);
+            if (r != LIBRAILCAN_STATUS_SUCCESS)
+                SYSLOG_BUS(bus, DBG_ERROR,
+                          "librailcan_dcc_set_speed failed (r=%d)", r);
+        }
     }
 
     /* functions */
-    int i;
-    for (i = 0; i < gl.n_func; i++) {
-        r = librailcan_dcc_locomotive_set_function(__railcan->module_dcc, address, i,
-                                        (gl.
-                                         funcs & (1 << i)) ?
-                                         LIBRAILCAN_DCC_LOCOMOTIVE_FUNCTION_ENABLED :
-                                         LIBRAILCAN_DCC_LOCOMOTIVE_FUNCTION_DISABLED);
-        if (r != LIBRAILCAN_STATUS_SUCCESS)
-            SYSLOG_BUS(bus, DBG_ERROR,
-                       "librailcan_dcc_set_function failed (r=%d)", r);
+    unsigned int funcs_changed = gl_cache.funcs ^ gl.funcs;
+    if (funcs_changed != 0) {
+        int i;
+        for (i = 0; i < gl.n_func; i++) {
+            if (funcs_changed & (1 << i)) {
+                r = librailcan_dcc_locomotive_set_function(__railcan->module_dcc, address, i,
+                                                (gl.
+                                                funcs & (1 << i)) ?
+                                                LIBRAILCAN_DCC_LOCOMOTIVE_FUNCTION_ENABLED :
+                                                LIBRAILCAN_DCC_LOCOMOTIVE_FUNCTION_DISABLED);
+                if (r != LIBRAILCAN_STATUS_SUCCESS)
+                    SYSLOG_BUS(bus, DBG_ERROR,
+                              "librailcan_dcc_set_function failed (r=%d)", r);
+            }
+        }
     }
 
     /* update cache */
