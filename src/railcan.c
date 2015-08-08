@@ -246,7 +246,7 @@ static void handle_gl_command(bus_t bus)
 
     /* functions */
     int i;
-    for (i = 0; i < gl.n_fs; i++) {
+    for (i = 0; i < gl.n_func; i++) {
         r = librailcan_dcc_locomotive_set_function(__railcan->module_dcc, address, i,
                                         (gl.
                                          funcs & (1 << i)) ?
